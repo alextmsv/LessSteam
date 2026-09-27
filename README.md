@@ -5,7 +5,7 @@
 **Keep Steam out of your game's way.**
 
 While a game is running, LessSteam throttles, trims or freezes Steam's background processes,<br>
-and puts everything back the moment you quit.
+and puts everything back the moment you quit.    ↓↓↓ This link works, you can click ↓↓↓
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20x64-0078D6)
