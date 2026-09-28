@@ -674,7 +674,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previousInstance, LPWSTR comma
     LsConfigFileChanged(g_configPath, &g_configWriteTime);
     ReloadConfig();
 
-    if ((g_config.startWithWindows == TRUE || g_config.autostartWithSteam) && !IsTaskInstalled())
+    if (g_config.startWithWindows == TRUE || g_config.autostartWithSteam)
         SyncTask(g_config.startWithWindows == TRUE, g_config.autostartWithSteam);
 
     ResumeSteamService();
