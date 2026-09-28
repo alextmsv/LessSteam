@@ -6,5 +6,7 @@
 void LsLogInit(LPCWSTR component);
 void LsLogSetEnabled(BOOL enabled);
 void LsLog(LPCWSTR format, ...);
+void LsLogRotate(void);
+void LsLogRotateIfLarger(ULONGLONG maxBytes);
 
 #endif

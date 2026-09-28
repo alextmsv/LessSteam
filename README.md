@@ -130,6 +130,10 @@ SteamService=idle
 
 (Inline `;` comments are shown here for readability only; in the real file keep comments on their own lines.)
 
+### Logs
+
+`%TEMP%\LessSteam.log` holds the current run. Every helper start begins a new log, and the previous run is kept as `LessSteam.prev.log`. Attach both when reporting a problem.
+
 ## Build
 
 Requires Visual Studio 2022 Build Tools with the x64 C/C++ toolchain.

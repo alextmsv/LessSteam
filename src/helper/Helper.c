@@ -679,6 +679,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previousInstance, LPWSTR comma
     if (instanceMutex == NULL || GetLastError() == ERROR_ALREADY_EXISTS)
         return 0;
 
+    LsLogRotate();
+
     g_processes = LsAllocProcessBuffer();
     if (g_processes == NULL)
         return 1;

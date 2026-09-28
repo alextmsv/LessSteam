@@ -16,6 +16,32 @@ void LsLogSetEnabled(BOOL enabled)
     InterlockedExchange(&g_logEnabled, enabled ? TRUE : FALSE);
 }
 
+static BOOL BuildLogPath(LPWSTR path, DWORD capacity, LPCWSTR fileName)
+{
+    return GetTempPathW(capacity, path) != 0 && SUCCEEDED(StringCchCatW(path, capacity, fileName));
+}
+
+void LsLogRotate(void)
+{
+    WCHAR logPath[MAX_PATH] = {0};
+    WCHAR previousPath[MAX_PATH] = {0};
+
+    if (BuildLogPath(logPath, ARRAYSIZE(logPath), L"LessSteam.log") &&
+        BuildLogPath(previousPath, ARRAYSIZE(previousPath), L"LessSteam.prev.log"))
+        MoveFileExW(logPath, previousPath, MOVEFILE_REPLACE_EXISTING);
+}
+
+void LsLogRotateIfLarger(ULONGLONG maxBytes)
+{
+    WCHAR logPath[MAX_PATH] = {0};
+    WIN32_FILE_ATTRIBUTE_DATA data = {0};
+
+    if (BuildLogPath(logPath, ARRAYSIZE(logPath), L"LessSteam.log") &&
+        GetFileAttributesExW(logPath, GetFileExInfoStandard, &data) &&
+        (((ULONGLONG)data.nFileSizeHigh << 32) | data.nFileSizeLow) > maxBytes)
+        LsLogRotate();
+}
+
 void LsLog(LPCWSTR format, ...)
 {
     WCHAR logPath[MAX_PATH] = {0};
@@ -31,8 +57,7 @@ void LsLog(LPCWSTR format, ...)
     if (!g_logEnabled || format == NULL)
         return;
 
-    if (GetTempPathW(ARRAYSIZE(logPath), logPath) == 0 ||
-        FAILED(StringCchCatW(logPath, ARRAYSIZE(logPath), L"LessSteam.log")))
+    if (!BuildLogPath(logPath, ARRAYSIZE(logPath), L"LessSteam.log"))
         return;
 
     va_start(args, format);

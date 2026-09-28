@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Every helper start begins a fresh `LessSteam.log`; the previous run is kept as `LessSteam.prev.log`. Without the helper, the DLL starts a new log once it exceeds 5 MB.
+
 ## 1.1.0 — 2026-09-28
 
 - **Autostart with Steam** (on by default, toggle in the tray): `umpdc.dll` starts `LessSteamHelper.exe` when Steam starts, elevated and without a UAC prompt, via the `LessSteam` scheduled task. The DLL now checks that the helper really started and logs it if it did not.

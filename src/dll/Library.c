@@ -113,6 +113,7 @@ static DWORD WINAPI MonitorThreadProc(LPVOID parameter)
         return 0;
 
     ProcessIdToSessionId(steamProcessId, &steamSessionId);
+    LsLogRotateIfLarger(5ULL * 1024 * 1024);
     LsParkInit();
 
     LsBuildConfigPath(pinnedModule, g_configPath, ARRAYSIZE(g_configPath));
