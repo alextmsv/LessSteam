@@ -358,6 +358,31 @@ static void UpdateTrayTip(void)
     Shell_NotifyIconW(NIM_MODIFY, &g_notifyIcon);
 }
 
+static HICON LoadTrayIcon(void)
+{
+    static HICON icon = NULL;
+
+    if (icon == NULL)
+        icon = (HICON)LoadImageW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDI_LESSSTEAM), IMAGE_ICON,
+                                 GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
+    if (icon == NULL)
+        icon = LoadIconW(NULL, IDI_APPLICATION);
+
+    return icon;
+}
+
+static void EnableDpiAwareness(void)
+{
+    typedef BOOL(WINAPI * pfnSetProcessDpiAwarenessContext)(HANDLE);
+    HMODULE user32 = GetModuleHandleW(L"user32.dll");
+    pfnSetProcessDpiAwarenessContext setContext = NULL;
+
+    if (user32 != NULL)
+        setContext = (pfnSetProcessDpiAwarenessContext)GetProcAddress(user32, "SetProcessDpiAwarenessContext");
+    if (setContext != NULL)
+        setContext((HANDLE)-4);
+}
+
 static void AddTrayIcon(void)
 {
     g_notifyIcon.cbSize = sizeof(g_notifyIcon);
@@ -365,7 +390,7 @@ static void AddTrayIcon(void)
     g_notifyIcon.uID = 1;
     g_notifyIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     g_notifyIcon.uCallbackMessage = WM_LS_TRAY;
-    g_notifyIcon.hIcon = LoadIconW(NULL, IDI_APPLICATION);
+    g_notifyIcon.hIcon = LoadTrayIcon();
     StringCchCopyW(g_notifyIcon.szTip, ARRAYSIZE(g_notifyIcon.szTip), L"LessSteam");
     Shell_NotifyIconW(NIM_ADD, &g_notifyIcon);
     UpdateTrayTip();
@@ -681,11 +706,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previousInstance, LPWSTR comma
     if (!TrackSteamClient(GetTickCount64()))
         ResumeOrphanedSteamProcesses();
 
+    EnableDpiAwareness();
     g_taskbarCreatedMessage = RegisterWindowMessageW(L"TaskbarCreated");
 
     windowClass.cbSize = sizeof(windowClass);
     windowClass.lpfnWndProc = WindowProc;
     windowClass.hInstance = instance;
+    windowClass.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(IDI_LESSSTEAM));
     windowClass.lpszClassName = L"LessSteamHelperWindow";
     if (!RegisterClassExW(&windowClass))
         return 1;

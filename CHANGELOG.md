@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-09-28
 
-- **Autostart with Steam** (on by default, toggle in the tray): `umpdc.dll` starts `LessSteamHelper.exe` when Steam starts, elevated and without a UAC prompt, via the `LessSteam` scheduled task.
-- The scheduled task now exists whenever either autostart option is on; **Start with Windows** only adds a logon trigger to it.
+- **Autostart with Steam** (on by default, toggle in the tray): `umpdc.dll` starts `LessSteamHelper.exe` when Steam starts, elevated and without a UAC prompt, via the `LessSteam` scheduled task. The DLL now checks that the helper really started and logs it if it did not.
+- The scheduled task exists whenever either autostart option is on; **Start with Windows** only adds a logon trigger to it. The helper re-points the task at itself on every start, so moving it can no longer leave a broken task behind.
+- LessSteam tray and program icon, sharp at every DPI (the helper is now DPI-aware).
+- A helper that is not next to `steam.exe` now uses Steam's own `LessSteam.ini` (found through the `SteamPath` registry value), so the tray and `umpdc.dll` always share one config.
 - Toggling autostart options no longer restores and re-applies the current game's limits; only changes to the preset, modes, trim interval or pause do.
+- Lower overhead: Steam's process list is re-scanned every 15 seconds instead of 5 while a game runs. Measured cost: about 0.1% of one CPU core for the DLL and 0.02% for the helper.
+- Fixed a false "busy" reading right after a process was parked.
 
 ## 1.0.0 — 2026-09-28
 

@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/LessSteam.png" width="96" alt="LessSteam icon">
+
 # LessSteam
 
 **Keep Steam out of your game's way.**
@@ -149,6 +151,8 @@ This builds `umpdc.dll`, `LessSteamHelper.exe` and the tests, runs the tests, an
 ## Credits
 
 Built on [NoSteamWebHelper Reloaded](https://github.com/xowny/NoSteamWebHelper-Reloaded), itself a fork of the original [NoSteamWebHelper](https://github.com/Aetopia/NoSteamWebHelper) by Aetopia.
+
+LessSteam is an independent project and is not affiliated with or endorsed by Valve. Steam is a trademark of Valve Corporation.
 
 ## License
 
