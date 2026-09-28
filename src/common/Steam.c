@@ -37,3 +37,22 @@ BOOL LsIsSteamGameRunning(DWORD *appId)
 
     return LsShouldPark(runningAppId, appMarkedRunning);
 }
+
+BOOL LsGetSteamDirectory(LPWSTR path, DWORD capacity)
+{
+    DWORD size = capacity * sizeof(WCHAR);
+    LPWSTR cursor = NULL;
+
+    if (RegGetValueW(HKEY_CURRENT_USER, L"SOFTWARE\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, path, &size) !=
+            ERROR_SUCCESS ||
+        path[0] == L'\0')
+        return FALSE;
+
+    for (cursor = path; *cursor != L'\0'; cursor++)
+    {
+        if (*cursor == L'/')
+            *cursor = L'\\';
+    }
+
+    return TRUE;
+}

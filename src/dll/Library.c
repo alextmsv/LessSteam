@@ -6,7 +6,7 @@
 #include "Steam.h"
 #include "Task.h"
 
-#define RESCAN_INTERVAL_MS 5000ULL
+#define RESCAN_INTERVAL_MS 15000ULL
 
 static HANDLE g_stopEvent = NULL;
 static LS_PARK_TABLE g_table = {0};

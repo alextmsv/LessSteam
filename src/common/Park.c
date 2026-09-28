@@ -266,9 +266,15 @@ void LsParkSample(LS_PARK_TABLE *table)
             continue;
         }
 
-        cpuTime = QueryCpuTime(entry->processHandle);
         elapsedMs = now - entry->lastSampleTick;
-        if (entry->target != LS_TARGET_STEAMCLIENT && elapsedMs != 0 && cpuTime >= entry->lastCpuTime)
+        if (elapsedMs < 500)
+        {
+            index++;
+            continue;
+        }
+
+        cpuTime = QueryCpuTime(entry->processHandle);
+        if (entry->target != LS_TARGET_STEAMCLIENT && cpuTime >= entry->lastCpuTime)
         {
             ULONGLONG percent = (cpuTime - entry->lastCpuTime) / (elapsedMs * 100);
 

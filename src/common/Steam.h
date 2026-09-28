@@ -4,5 +4,6 @@
 #include <windows.h>
 
 BOOL LsIsSteamGameRunning(DWORD *appId);
+BOOL LsGetSteamDirectory(LPWSTR path, DWORD capacity);
 
 #endif

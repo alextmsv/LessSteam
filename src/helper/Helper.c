@@ -585,6 +585,28 @@ static LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPA
     return DefWindowProcW(window, message, wParam, lParam);
 }
 
+static void BuildHelperConfigPath(void)
+{
+    WCHAR steamExe[MAX_PATH] = {0};
+    WCHAR steamDirectory[MAX_PATH] = {0};
+    LPWSTR separator = NULL;
+
+    if (LsBuildConfigPath(NULL, g_configPath, ARRAYSIZE(g_configPath)) &&
+        SUCCEEDED(StringCchCopyW(steamExe, ARRAYSIZE(steamExe), g_configPath)) &&
+        (separator = wcsrchr(steamExe, L'\\')) != NULL)
+    {
+        separator[1] = L'\0';
+        if (SUCCEEDED(StringCchCatW(steamExe, ARRAYSIZE(steamExe), L"steam.exe")) &&
+            GetFileAttributesW(steamExe) != INVALID_FILE_ATTRIBUTES)
+            return;
+    }
+
+    if (LsGetSteamDirectory(steamDirectory, ARRAYSIZE(steamDirectory)) &&
+        SUCCEEDED(StringCchPrintfW(g_configPath, ARRAYSIZE(g_configPath), L"%s\\%s", steamDirectory,
+                                   LS_CONFIG_FILE_NAME)))
+        LsLog(L"not next to steam.exe; using %s", g_configPath);
+}
+
 static BOOL HasArgument(LPCWSTR expected)
 {
     int argc = 0;
@@ -613,7 +635,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previousInstance, LPWSTR comma
     UNREFERENCED_PARAMETER(showCommand);
 
     LsLogInit(L"helper");
-    LsBuildConfigPath(NULL, g_configPath, ARRAYSIZE(g_configPath));
+    BuildHelperConfigPath();
 
     if (HasArgument(L"--install"))
     {
