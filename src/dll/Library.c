@@ -122,8 +122,24 @@ static DWORD WINAPI MonitorThreadProc(LPVOID parameter)
     LsLog(L"monitor started; preset=%s", LsPresetName(config.preset));
 
     if (config.autostartWithSteam && !LsIsHelperRunning())
-        LsLog(LsRunHelperTask() ? L"started LessSteamHelper via scheduled task"
-                                : L"cannot start LessSteamHelper; run LessSteamHelper.exe once to register it");
+    {
+        BOOL started = FALSE;
+
+        if (LsRunHelperTask())
+        {
+            int attempt = 0;
+
+            for (; attempt < 20 && !started; attempt++)
+            {
+                if (WaitForSingleObject(g_stopEvent, 500) != WAIT_TIMEOUT)
+                    return 0;
+                started = LsIsHelperRunning();
+            }
+        }
+
+        LsLog(started ? L"started LessSteamHelper via scheduled task"
+                      : L"LessSteamHelper did not start; run LessSteamHelper.exe from the Steam folder once");
+    }
 
     processes = LsAllocProcessBuffer();
     if (processes == NULL)
