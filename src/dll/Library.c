@@ -4,6 +4,7 @@
 #include "Park.h"
 #include "Process.h"
 #include "Steam.h"
+#include "Task.h"
 
 #define RESCAN_INTERVAL_MS 5000ULL
 
@@ -120,6 +121,10 @@ static DWORD WINAPI MonitorThreadProc(LPVOID parameter)
     LsLogSetEnabled(config.logEnabled);
     LsLog(L"monitor started; preset=%s", LsPresetName(config.preset));
 
+    if (config.autostartWithSteam && !LsIsHelperRunning())
+        LsLog(LsRunHelperTask() ? L"started LessSteamHelper via scheduled task"
+                                : L"cannot start LessSteamHelper; run LessSteamHelper.exe once to register it");
+
     processes = LsAllocProcessBuffer();
     if (processes == NULL)
     {
@@ -134,16 +139,21 @@ static DWORD WINAPI MonitorThreadProc(LPVOID parameter)
 
         if (LsConfigFileChanged(g_configPath, &configWriteTime))
         {
+            LS_CONFIG previous = config;
+
             LsLoadConfig(g_configPath, &config);
             LsLogSetEnabled(config.logEnabled);
-            LsLog(L"config reloaded; preset=%s", LsPresetName(config.preset));
 
-            if (parked)
+            if (!LsParkingConfigEqual(&previous, &config))
             {
-                LsParkRestoreAll(&g_table);
-                parked = FALSE;
+                LsLog(L"config reloaded; preset=%s paused=%d", LsPresetName(config.preset), config.paused);
+                if (parked)
+                {
+                    LsParkRestoreAll(&g_table);
+                    parked = FALSE;
+                }
+                continue;
             }
-            continue;
         }
 
         if (!config.paused && LsIsSteamGameRunning(&appId))

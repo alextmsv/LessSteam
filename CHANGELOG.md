@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Autostart with Steam** (on by default, toggle in the tray): `umpdc.dll` starts `LessSteamHelper.exe` when Steam starts, elevated and without a UAC prompt, via the `LessSteam` scheduled task.
+- The scheduled task now exists whenever either autostart option is on; **Start with Windows** only adds a logon trigger to it.
+- Toggling autostart options no longer restores and re-applies the current game's limits; only changes to the preset, modes, trim interval or pause do.
+
 ## 1.0.0 — 2026-09-28
 
 First release, based on NoSteamWebHelper Reloaded.

@@ -53,7 +53,7 @@ Want something in between? Choose **Custom** and set a mode per process in `Less
 1. Download the latest [release](https://github.com/alextmsv/LessSteam/releases/latest).
 2. Close Steam completely (tray icon → **Exit**).
 3. Copy the files from the archive next to `steam.exe` (usually `C:\Program Files (x86)\Steam`).
-4. Run `LessSteamHelper.exe`, accept the UAC prompt, and tick **Start with Windows** in its tray menu. From then on it starts elevated at logon without a prompt.
+4. Run `LessSteamHelper.exe` once and accept the UAC prompt. It registers itself so that from now on it **starts automatically with Steam**, elevated and without a prompt.
 5. Start Steam and play.
 
 ### Tray menu
@@ -61,12 +61,13 @@ Want something in between? Choose **Custom** and set a mode per process in `Less
 - **Limit Steam / Slay Steam / Custom**: switch presets live, even mid-game.
 - **Pause**: turn LessSteam off without closing it; everything is restored immediately.
 - **Open LessSteam.ini**: fine-tune everything.
-- **Start with Windows**: install or remove the logon task.
+- **Autostart with Steam** (on by default): Steam launches the helper every time it starts.
+- **Start with Windows**: also start the helper at logon.
 - **Exit**: restores everything and pauses LessSteam until the helper is started again.
 
 ### Uninstall
 
-Untick **Start with Windows**, choose **Exit**, close Steam and delete `umpdc.dll`, `umpdc_system.dll`, `LessSteamHelper.exe` and `LessSteam.ini`.
+Untick **Autostart with Steam** and **Start with Windows** (this removes the scheduled task), choose **Exit**, close Steam and delete `umpdc.dll`, `umpdc_system.dll`, `LessSteamHelper.exe` and `LessSteam.ini`.
 
 ## How it works
 
@@ -102,6 +103,10 @@ That way an opened overlay never has to reload its UI from disk.
 - If the helper crashed while `SteamService.exe` was frozen, it resumes it on the next start. It also restores everything on exit, on crash and on Windows shutdown, and Task Scheduler restarts it after a crash.
 - Without the helper, `umpdc.dll` still works on its own; only `SteamService.exe` is left alone.
 
+### Autostart with Steam
+
+`steam.exe` is not elevated, so it cannot start an elevated helper directly without a UAC prompt. Instead, the helper registers a `LessSteam` scheduled task with highest privileges the first time you run it. When Steam starts, `umpdc.dll` checks whether the helper is running; if it is not, the DLL runs that task. With **Start with Windows** the same task also gets a logon trigger.
+
 ## Configuration
 
 `LessSteam.ini` lives next to `steam.exe` and documents every option:
@@ -110,6 +115,7 @@ That way an opened overlay never has to reload its UI from disk.
 [General]
 Preset=Limit          ; Limit | Slay | Custom
 Paused=0
+AutostartWithSteam=1
 TrimIntervalMs=0      ; 0 = preset default (Limit 10 s, Slay 1 s)
 Log=1                 ; %TEMP%\LessSteam.log
 

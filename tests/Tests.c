@@ -116,6 +116,21 @@ static void TestLoadConfig(void)
     LsLoadConfig(path, &config);
     Expect(!config.paused, "Paused=0 is read");
 
+    Expect(config.autostartWithSteam, "AutostartWithSteam defaults to on");
+    Expect(config.startWithWindows < 0, "missing StartWithWindows is reported as unknown");
+    LsWriteFlag(path, L"AutostartWithSteam", FALSE);
+    LsWriteFlag(path, L"StartWithWindows", TRUE);
+    {
+        LS_CONFIG before = config;
+
+        LsLoadConfig(path, &config);
+        Expect(!config.autostartWithSteam && config.startWithWindows == TRUE, "autostart flags are read");
+        Expect(LsParkingConfigEqual(&before, &config), "autostart flags do not affect parking");
+        LsWritePaused(path, TRUE);
+        LsLoadConfig(path, &config);
+        Expect(!LsParkingConfigEqual(&before, &config), "Paused affects parking");
+    }
+
     Expect(LsDefaultTrimInterval(LS_PRESET_SLAY) == 1000, "Slay trims every second");
     Expect(LsDefaultTrimInterval(LS_PRESET_LIMIT) == 10000, "Limit trims every ten seconds");
 

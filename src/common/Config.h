@@ -44,6 +44,8 @@ typedef struct LS_CONFIG
     DWORD trimIntervalMs;
     BOOL logEnabled;
     BOOL paused;
+    BOOL autostartWithSteam;
+    int startWithWindows;
 } LS_CONFIG;
 
 LS_MODE LsParseMode(LPCWSTR text);
@@ -60,6 +62,8 @@ DWORD LsDefaultTrimInterval(LS_PRESET preset);
 void LsLoadConfig(LPCWSTR path, LS_CONFIG *config);
 BOOL LsWritePreset(LPCWSTR path, LS_PRESET preset);
 BOOL LsWritePaused(LPCWSTR path, BOOL paused);
+BOOL LsWriteFlag(LPCWSTR path, LPCWSTR key, BOOL value);
+BOOL LsParkingConfigEqual(const LS_CONFIG *left, const LS_CONFIG *right);
 BOOL LsBuildConfigPath(HMODULE module, LPWSTR path, DWORD capacity);
 BOOL LsConfigFileChanged(LPCWSTR path, FILETIME *lastWriteTime);
 

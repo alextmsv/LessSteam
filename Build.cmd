@@ -30,7 +30,7 @@ if exist "%BUILD%" rd /q /s "%BUILD%"
 if not exist "%RELEASE%" md "%RELEASE%"
 md "%OBJ%\common" "%OBJ%\dll" "%OBJ%\helper" "%OBJ%\tests" "%BIN%"
 
-cl %CFLAGS% /Fo"%OBJ%\common\\" /c src\common\Config.c src\common\Log.c src\common\Park.c src\common\Process.c src\common\State.c src\common\Steam.c || goto :fail
+cl %CFLAGS% /Fo"%OBJ%\common\\" /c src\common\Config.c src\common\Log.c src\common\Park.c src\common\Process.c src\common\State.c src\common\Steam.c src\common\Task.c || goto :fail
 lib /nologo /out:"%OBJ%\common\LessSteamCommon.lib" "%OBJ%\common\*.obj" || goto :fail
 
 cl %CFLAGS% /Fo"%OBJ%\dll\\" /c src\dll\Library.c || goto :fail

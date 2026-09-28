@@ -9,6 +9,7 @@
 #include "Park.h"
 #include "Process.h"
 #include "Steam.h"
+#include "Task.h"
 #include "resource.h"
 
 #define WM_LS_TRAY (WM_APP + 1)
@@ -19,11 +20,11 @@
 #define ID_PRESET_SLAY 1002
 #define ID_PRESET_CUSTOM 1003
 #define ID_OPEN_CONFIG 1010
-#define ID_AUTOSTART 1011
+#define ID_START_WITH_WINDOWS 1011
 #define ID_PAUSE 1012
+#define ID_AUTOSTART_WITH_STEAM 1013
 #define ID_EXIT 1020
 
-#define TASK_NAME L"LessSteam"
 #define STEAM_SCAN_INTERVAL_MS 5000ULL
 #define SERVICE_SCAN_INTERVAL_MS 5000ULL
 
@@ -43,7 +44,6 @@ static DWORD g_appId = 0;
 static ULONGLONG g_gameStart = 0;
 static ULONGLONG g_lastServiceScan = 0;
 static ULONGLONG g_lastTrim = 0;
-static BOOL g_autostartInstalled = FALSE;
 
 static BOOL EnableDebugPrivilege(void)
 {
@@ -62,34 +62,6 @@ static BOOL EnableDebugPrivilege(void)
 
     CloseHandle(token);
     return enabled;
-}
-
-static DWORD RunHidden(LPWSTR commandLine)
-{
-    STARTUPINFOW startup = {0};
-    PROCESS_INFORMATION process = {0};
-    DWORD exitCode = (DWORD)-1;
-
-    startup.cb = sizeof(startup);
-    if (!CreateProcessW(NULL, commandLine, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process))
-        return (DWORD)-1;
-
-    if (WaitForSingleObject(process.hProcess, 15000) == WAIT_OBJECT_0)
-        GetExitCodeProcess(process.hProcess, &exitCode);
-
-    CloseHandle(process.hThread);
-    CloseHandle(process.hProcess);
-    return exitCode;
-}
-
-static BOOL BuildSchtasksCommand(LPWSTR buffer, size_t capacity, LPCWSTR arguments)
-{
-    WCHAR systemDirectory[MAX_PATH] = {0};
-
-    if (GetSystemDirectoryW(systemDirectory, ARRAYSIZE(systemDirectory)) == 0)
-        return FALSE;
-
-    return SUCCEEDED(StringCchPrintfW(buffer, capacity, L"\"%s\\schtasks.exe\" %s", systemDirectory, arguments));
 }
 
 static void AppendXmlEscaped(LPWSTR buffer, size_t capacity, LPCWSTR text)
@@ -119,17 +91,17 @@ static void AppendXmlEscaped(LPWSTR buffer, size_t capacity, LPCWSTR text)
     }
 }
 
-static BOOL IsAutostartInstalled(void)
+static BOOL IsTaskInstalled(void)
 {
     WCHAR command[MAX_PATH * 2] = {0};
 
-    if (!BuildSchtasksCommand(command, ARRAYSIZE(command), L"/Query /TN \"" TASK_NAME L"\""))
+    if (!LsBuildSchtasksCommand(command, ARRAYSIZE(command), L"/Query /TN \"" LS_TASK_NAME L"\""))
         return FALSE;
 
-    return RunHidden(command) == 0;
+    return LsRunHidden(command, 15000) == 0;
 }
 
-static BOOL InstallAutostart(void)
+static BOOL InstallTask(BOOL logonTrigger)
 {
     static WCHAR xml[8192];
     WCHAR exePath[MAX_PATH] = {0};
@@ -153,12 +125,18 @@ static BOOL InstallAutostart(void)
     StringCchCatW(xml, ARRAYSIZE(xml),
                   L"<?xml version=\"1.0\" encoding=\"UTF-16\"?>\r\n"
                   L"<Task version=\"1.2\" xmlns=\"http://schemas.microsoft.com/windows/2004/02/mit/task\">\r\n"
-                  L"  <RegistrationInfo><Description>LessSteam helper</Description></RegistrationInfo>\r\n"
-                  L"  <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>");
-    AppendXmlEscaped(xml, ARRAYSIZE(xml), userName);
-    StringCchCatW(xml, ARRAYSIZE(xml),
-                  L"</UserId></LogonTrigger></Triggers>\r\n"
-                  L"  <Principals><Principal id=\"Author\"><UserId>");
+                  L"  <RegistrationInfo><Description>LessSteam helper</Description></RegistrationInfo>\r\n");
+    if (logonTrigger)
+    {
+        StringCchCatW(xml, ARRAYSIZE(xml), L"  <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>");
+        AppendXmlEscaped(xml, ARRAYSIZE(xml), userName);
+        StringCchCatW(xml, ARRAYSIZE(xml), L"</UserId></LogonTrigger></Triggers>\r\n");
+    }
+    else
+    {
+        StringCchCatW(xml, ARRAYSIZE(xml), L"  <Triggers />\r\n");
+    }
+    StringCchCatW(xml, ARRAYSIZE(xml), L"  <Principals><Principal id=\"Author\"><UserId>");
     AppendXmlEscaped(xml, ARRAYSIZE(xml), userName);
     StringCchCatW(xml, ARRAYSIZE(xml),
                   L"</UserId><LogonType>InteractiveToken</LogonType><RunLevel>HighestAvailable</RunLevel>"
@@ -193,28 +171,36 @@ static BOOL InstallAutostart(void)
     CloseHandle(file);
 
     if (ok &&
-        SUCCEEDED(StringCchPrintfW(arguments, ARRAYSIZE(arguments), L"/Create /TN \"" TASK_NAME L"\" /XML \"%s\" /F",
+        SUCCEEDED(StringCchPrintfW(arguments, ARRAYSIZE(arguments), L"/Create /TN \"" LS_TASK_NAME L"\" /XML \"%s\" /F",
                                    xmlPath)) &&
-        BuildSchtasksCommand(command, ARRAYSIZE(command), arguments))
-        ok = RunHidden(command) == 0;
+        LsBuildSchtasksCommand(command, ARRAYSIZE(command), arguments))
+        ok = LsRunHidden(command, 15000) == 0;
     else
         ok = FALSE;
 
     DeleteFileW(xmlPath);
-    LsLog(L"install autostart task: %s", ok ? L"OK" : L"FAILED");
+    LsLog(L"install helper task (logon trigger=%d): %s", logonTrigger, ok ? L"OK" : L"FAILED");
     return ok;
 }
 
-static BOOL UninstallAutostart(void)
+static BOOL UninstallTask(void)
 {
     WCHAR command[MAX_PATH * 2] = {0};
     BOOL ok = FALSE;
 
-    if (BuildSchtasksCommand(command, ARRAYSIZE(command), L"/Delete /TN \"" TASK_NAME L"\" /F"))
-        ok = RunHidden(command) == 0;
+    if (LsBuildSchtasksCommand(command, ARRAYSIZE(command), L"/Delete /TN \"" LS_TASK_NAME L"\" /F"))
+        ok = LsRunHidden(command, 15000) == 0;
 
-    LsLog(L"remove autostart task: %s", ok ? L"OK" : L"FAILED");
+    LsLog(L"remove helper task: %s", ok ? L"OK" : L"FAILED");
     return ok;
+}
+
+static void SyncTask(BOOL startWithWindows, BOOL autostartWithSteam)
+{
+    if (startWithWindows || autostartWithSteam)
+        InstallTask(startWithWindows);
+    else if (IsTaskInstalled())
+        UninstallTask();
 }
 
 static BOOL EnsureConfigFile(void)
@@ -418,7 +404,10 @@ static void ShowTrayMenu(void)
     AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     AppendMenuW(menu, MF_STRING | (g_config.paused ? MF_CHECKED : 0), ID_PAUSE, L"Pause");
     AppendMenuW(menu, MF_STRING, ID_OPEN_CONFIG, L"Open " LS_CONFIG_FILE_NAME);
-    AppendMenuW(menu, MF_STRING | (g_autostartInstalled ? MF_CHECKED : 0), ID_AUTOSTART, L"Start with Windows");
+    AppendMenuW(menu, MF_STRING | (g_config.autostartWithSteam ? MF_CHECKED : 0), ID_AUTOSTART_WITH_STEAM,
+                L"Autostart with Steam");
+    AppendMenuW(menu, MF_STRING | (g_config.startWithWindows == TRUE ? MF_CHECKED : 0), ID_START_WITH_WINDOWS,
+                L"Start with Windows");
     AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     AppendMenuW(menu, MF_STRING, ID_EXIT, L"Exit");
 
@@ -440,8 +429,11 @@ static void Tick(void)
 
     if (LsConfigFileChanged(g_configPath, &g_configWriteTime))
     {
+        LS_CONFIG previous = g_config;
+
         ReloadConfig();
-        RestoreAll(L"config changed");
+        if (!LsParkingConfigEqual(&previous, &g_config))
+            RestoreAll(L"config changed");
     }
 
     steamRunning = TrackSteamClient(now);
@@ -490,6 +482,15 @@ static void SetPaused(BOOL paused)
     EnsureConfigFile();
     if (!LsWritePaused(g_configPath, paused))
         LsLog(L"cannot write Paused to %s error=%lu", g_configPath, GetLastError());
+}
+
+static void SetAutostart(BOOL startWithWindows, BOOL autostartWithSteam)
+{
+    EnsureConfigFile();
+    LsWriteFlag(g_configPath, L"StartWithWindows", startWithWindows);
+    LsWriteFlag(g_configPath, L"AutostartWithSteam", autostartWithSteam);
+    SyncTask(startWithWindows, autostartWithSteam);
+    Tick();
 }
 
 static void SelectPreset(LS_PRESET preset)
@@ -548,12 +549,11 @@ static LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPA
         case ID_OPEN_CONFIG:
             OpenConfigFile();
             break;
-        case ID_AUTOSTART:
-            if (g_autostartInstalled)
-                UninstallAutostart();
-            else
-                InstallAutostart();
-            g_autostartInstalled = IsAutostartInstalled();
+        case ID_START_WITH_WINDOWS:
+            SetAutostart(g_config.startWithWindows != TRUE, g_config.autostartWithSteam);
+            break;
+        case ID_AUTOSTART_WITH_STEAM:
+            SetAutostart(g_config.startWithWindows == TRUE, !g_config.autostartWithSteam);
             break;
         case ID_PAUSE:
             SetPaused(!g_config.paused);
@@ -613,13 +613,22 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previousInstance, LPWSTR comma
     UNREFERENCED_PARAMETER(showCommand);
 
     LsLogInit(L"helper");
+    LsBuildConfigPath(NULL, g_configPath, ARRAYSIZE(g_configPath));
 
     if (HasArgument(L"--install"))
-        return InstallAutostart() ? 0 : 1;
+    {
+        EnsureConfigFile();
+        LsWriteFlag(g_configPath, L"StartWithWindows", TRUE);
+        return InstallTask(TRUE) ? 0 : 1;
+    }
     if (HasArgument(L"--uninstall"))
-        return UninstallAutostart() ? 0 : 1;
+    {
+        LsWriteFlag(g_configPath, L"StartWithWindows", FALSE);
+        LsWriteFlag(g_configPath, L"AutostartWithSteam", FALSE);
+        return UninstallTask() ? 0 : 1;
+    }
 
-    instanceMutex = CreateMutexW(NULL, TRUE, L"Local\\LessSteamHelper");
+    instanceMutex = CreateMutexW(NULL, TRUE, LS_HELPER_MUTEX_NAME);
     if (instanceMutex == NULL || GetLastError() == ERROR_ALREADY_EXISTS)
         return 0;
 
@@ -634,19 +643,22 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previousInstance, LPWSTR comma
 
     SetUnhandledExceptionFilter(CrashFilter);
 
-    LsBuildConfigPath(NULL, g_configPath, ARRAYSIZE(g_configPath));
     EnsureConfigFile();
     LsLoadConfig(g_configPath, &g_config);
     if (g_config.paused)
         SetPaused(FALSE);
+    if (g_config.startWithWindows < 0)
+        LsWriteFlag(g_configPath, L"StartWithWindows", IsTaskInstalled());
     LsConfigFileChanged(g_configPath, &g_configWriteTime);
     ReloadConfig();
+
+    if ((g_config.startWithWindows == TRUE || g_config.autostartWithSteam) && !IsTaskInstalled())
+        SyncTask(g_config.startWithWindows == TRUE, g_config.autostartWithSteam);
 
     ResumeSteamService();
     if (!TrackSteamClient(GetTickCount64()))
         ResumeOrphanedSteamProcesses();
 
-    g_autostartInstalled = IsAutostartInstalled();
     g_taskbarCreatedMessage = RegisterWindowMessageW(L"TaskbarCreated");
 
     windowClass.cbSize = sizeof(windowClass);

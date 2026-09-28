@@ -176,6 +176,10 @@ void LsLoadConfig(LPCWSTR path, LS_CONFIG *config)
 
     config->logEnabled = GetPrivateProfileIntW(L"General", L"Log", 1, path) != 0;
     config->paused = GetPrivateProfileIntW(L"General", L"Paused", 0, path) != 0;
+    config->autostartWithSteam = GetPrivateProfileIntW(L"General", L"AutostartWithSteam", 1, path) != 0;
+    config->startWithWindows = (int)GetPrivateProfileIntW(L"General", L"StartWithWindows", (UINT)-1, path);
+    if (config->startWithWindows > 0)
+        config->startWithWindows = TRUE;
 }
 
 BOOL LsWritePreset(LPCWSTR path, LS_PRESET preset)
@@ -186,9 +190,31 @@ BOOL LsWritePreset(LPCWSTR path, LS_PRESET preset)
     return WritePrivateProfileStringW(L"General", L"Preset", LsPresetName(preset), path);
 }
 
+BOOL LsWriteFlag(LPCWSTR path, LPCWSTR key, BOOL value)
+{
+    return WritePrivateProfileStringW(L"General", key, value ? L"1" : L"0", path);
+}
+
 BOOL LsWritePaused(LPCWSTR path, BOOL paused)
 {
-    return WritePrivateProfileStringW(L"General", L"Paused", paused ? L"1" : L"0", path);
+    return LsWriteFlag(path, L"Paused", paused);
+}
+
+BOOL LsParkingConfigEqual(const LS_CONFIG *left, const LS_CONFIG *right)
+{
+    int target = 0;
+
+    if (left->preset != right->preset || left->paused != right->paused ||
+        left->trimIntervalMs != right->trimIntervalMs)
+        return FALSE;
+
+    for (; target < LS_TARGET_COUNT; target++)
+    {
+        if (left->modes[target] != right->modes[target])
+            return FALSE;
+    }
+
+    return TRUE;
 }
 
 BOOL LsBuildConfigPath(HMODULE module, LPWSTR path, DWORD capacity)
